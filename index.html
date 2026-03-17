@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeline Comparison</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #eeede9;
+      --text: #111111;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border: #e0deda;
+      --border-strong: #c4c2bc;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --font: system-ui, -apple-system, sans-serif;
+      --font-mono: ui-monospace, 'Cascadia Code', monospace;
+      --accent-a: #378ADD;
+      --accent-b: #1D9E75;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --bg-secondary: #242424;
+        --bg-tertiary: #2e2e2e;
+        --text: #eeeeee;
+        --text-secondary: #aaaaaa;
+        --text-tertiary: #666666;
+        --border: #333333;
+        --border-strong: #4a4a4a;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 5rem;
+      line-height: 1.6;
+    }
+
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 3px; }
+    .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 2rem; }
+
+    /* ── Source panels ── */
+    .sources-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 680px) { .sources-row { grid-template-columns: 1fr; } }
+
+    .source-panel {
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      background: var(--bg-secondary);
+    }
+    .source-panel.a { border-top: 3px solid var(--accent-a); }
+    .source-panel.b { border-top: 3px solid var(--accent-b); }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .panel-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .panel-dot.a { background: var(--accent-a); }
+    .panel-dot.b { background: var(--accent-b); }
+
+    .panel-name {
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      outline: none;
+      flex: 1;
+      min-width: 0;
+      border-bottom: 1px dashed var(--border-strong);
+      padding-bottom: 1px;
+    }
+    .panel-name:focus { border-bottom-color: var(--text-secondary); }
+
+    .panel-file {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    input[type=file] { font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+
+    textarea {
+      width: 100%;
+      height: 90px;
+      resize: vertical;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 8px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      display: block;
+    }
+    textarea:focus { border-color: var(--border-strong); }
+
+    .file-status {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+      min-height: 16px;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 1.5rem;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-group label { font-size: 12px; color: var(--text-secondary); }
+    .ctrl-group input[type=text] {
+      width: 130px; height: 34px; padding: 0 10px;
+      font-size: 13px; border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius); background: var(--bg);
+      color: var(--text); outline: none; font-family: var(--font);
+    }
+    .ctrl-group input[type=text]:focus { border-color: var(--text-secondary); }
+
+    button {
+      height: 34px; padding: 0 16px;
+      font-size: 13px; font-family: var(--font);
+      background: transparent; color: var(--text);
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius); cursor: pointer; white-space: nowrap;
+    }
+    button:hover { background: var(--bg-secondary); }
+    button:active { transform: scale(0.98); }
+    button.primary {
+      background: var(--text); color: var(--bg);
+      border-color: var(--text);
+    }
+    button.primary:hover { opacity: 0.88; }
+
+    /* ── Timeline output ── */
+    #output { margin-top: 0.5rem; }
+
+    .tl-wrap {
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .tl-section {
+      padding: 0 20px;
+      background: var(--bg);
+    }
+    .tl-section.b { background: var(--bg-secondary); }
+
+    .tl-section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 0 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .tl-section-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .tl-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    .axis-strip {
+      background: var(--bg-tertiary);
+      padding: 0 20px;
+      border-top: 0.5px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      padding: 10px 20px 0;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      flex-wrap: wrap;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 6px 20px 10px;
+    }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .leg-dot {
+      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+      border: 1.5px solid var(--bg);
+      outline: 1px solid currentColor;
+    }
+    .leg-span { width: 18px; height: 7px; border-radius: 3px; opacity: 0.65; flex-shrink: 0; }
+
+    .empty {
+      color: var(--text-secondary);
+      font-size: 13px;
+      padding: 3rem 0;
+      text-align: center;
+    }
+
+    /* ── Tooltip ── */
+    .tooltip {
+      position: fixed;
+      background: var(--bg);
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 10px 13px;
+      font-size: 12px;
+      max-width: 300px;
+      z-index: 999;
+      pointer-events: none;
+      line-height: 1.65;
+      display: none;
+      color: var(--text);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+    }
+    .tooltip strong { font-weight: 500; font-size: 13px; display: block; margin-bottom: 3px; }
+    .tooltip .meta { color: var(--text-secondary); font-size: 11px; }
+    .source-badge {
+      display: inline-block;
+      background: var(--bg-secondary);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+      font-family: var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+
+<h1>Timeline Comparison</h1>
+<p class="subtitle">Load two JSONL event files and compare them on a shared time axis.</p>
+
+<div class="sources-row">
+  <div class="source-panel a">
+    <div class="panel-header">
+      <div class="panel-dot a"></div>
+      <input class="panel-name" id="nameA" type="text" value="Source A" placeholder="Source A label">
+    </div>
+    <div class="panel-file">
+      <input type="file" id="fileA" accept=".jsonl,.json,.txt">
+    </div>
+    <div class="file-status" id="statusA"></div>
+    <textarea id="textA" placeholder='{"start_date": "January 1905", "end_date": "unknown", "event": "...", "source": "a"}'></textarea>
+  </div>
+  <div class="source-panel b">
+    <div class="panel-header">
+      <div class="panel-dot b"></div>
+      <input class="panel-name" id="nameB" type="text" value="Source B" placeholder="Source B label">
+    </div>
+    <div class="panel-file">
+      <input type="file" id="fileB" accept=".jsonl,.json,.txt">
+    </div>
+    <div class="file-status" id="statusB"></div>
+    <textarea id="textB" placeholder='{"start_date": "autumn 1905", "end_date": "1906", "event": "...", "source": "b"}'></textarea>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>From year</label>
+    <input type="text" id="fromYear" placeholder="e.g. 1900">
+  </div>
+  <div class="ctrl-group">
+    <label>To year</label>
+    <input type="text" id="toYear" placeholder="e.g. 1920">
+  </div>
+  <button class="primary" onclick="render()">Compare timelines</button>
+  <button onclick="clearAll()">Clear</button>
+</div>
+
+<div id="output"><div class="empty">Load events above and click "Compare timelines".</div></div>
+<div class="tooltip" id="tt"></div>
+
+<script>
+const COLORS_A = ['#378ADD','#7F77DD','#D4537E','#BA7517'];
+const COLORS_B = ['#1D9E75','#D85A30','#639922','#888780'];
+
+const MONTH_MAP = {
+  january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,
+  september:8,october:9,november:10,december:11,
+  jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
+  spring:2,summer:5,autumn:8,fall:8,winter:11
+};
+
+function parseDate(s) {
+  if (!s || s === 'unknown' || s === '') return null;
+  s = s.trim().toLowerCase();
+  const y4 = s.match(/\b(1[0-9]\d{2}|20\d{2})\b/);
+  if (!y4) return null;
+  const year = parseInt(y4[1]);
+  let month = 6, day = 15;
+  for (const [name, m] of Object.entries(MONTH_MAP)) {
+    if (s.includes(name)) { month = m; break; }
+  }
+  const dm = s.match(/\b(\d{1,2})(st|nd|rd|th)?\b/);
+  if (dm && parseInt(dm[1]) <= 31) day = parseInt(dm[1]);
+  return new Date(year, month, day);
+}
+
+function getSources(e) {
+  if (!e.source) return '';
+  const s = typeof e.source === 'string' ? e.source : JSON.stringify(e.source);
+  return s.replace(/[\[\]'"]/g, '').trim();
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseLines(raw) {
+  const events = [];
+  for (const line of raw.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    try { events.push(JSON.parse(t)); } catch(e) {}
+  }
+  return events;
+}
+
+function loadFile(inputId, textareaId, statusId) {
+  const input = document.getElementById(inputId);
+  input.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById(textareaId).value = e.target.result;
+      document.getElementById(statusId).textContent = `Loaded: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+    };
+    reader.readAsText(file);
+  });
+}
+loadFile('fileA','textA','statusA');
+loadFile('fileB','textB','statusB');
+
+function clearAll() {
+  ['textA','textB'].forEach(id => document.getElementById(id).value = '');
+  ['fileA','fileB'].forEach(id => document.getElementById(id).value = '');
+  ['statusA','statusB'].forEach(id => document.getElementById(id).textContent = '');
+  document.getElementById('output').innerHTML = '<div class="empty">Load events above and click "Compare timelines".</div>';
+}
+
+function assignLanes(events) {
+  const laneEnds = [];
+  events.forEach(e => {
+    const endT = e._end && e._end > e._start
+      ? e._end.getTime()
+      : e._start.getTime() + 86400000 * 30;
+    let lane = laneEnds.findIndex(t => t < e._start.getTime() - 86400000 * 5);
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(0); }
+    laneEnds[lane] = endT;
+    e._lane = lane;
+  });
+  return laneEnds.length;
+}
+
+function buildSectionSVG(events, minT, maxT, W, colors, bgVar) {
+  const srcSet = [...new Set(events.map(e => getSources(e).split(',')[0].trim()))];
+  const srcColor = Object.fromEntries(srcSet.map((s, i) => [s, colors[i % colors.length]]));
+
+  function toX(d) { return ((d.getTime() - minT) / (maxT - minT)) * W; }
+
+  const LANE_H = 38;
+  const numLanes = assignLanes(events);
+  const height = numLanes * LANE_H + 16;
+
+  let svg = `<svg viewBox="0 0 ${W} ${height}" width="100%" style="display:block;overflow:visible" data-bg="${bgVar}">`;
+
+  events.forEach((e, i) => {
+    const x = toX(e._start);
+    const ly = e._lane * LANE_H + 10;
+    const src0 = getSources(e).split(',')[0].trim();
+    const color = srcColor[src0] || colors[0];
+    const isSpan = e._end && e._end > e._start && (e._end - e._start) > 86400000 * 10;
+
+    if (isSpan) {
+      const x2 = toX(e._end);
+      const w = Math.max(x2 - x, 4);
+      svg += `<rect class="evt" data-ei="${i}" x="${x.toFixed(1)}" y="${ly+3}" width="${w.toFixed(1)}" height="10" rx="4" fill="${color}" opacity="0.6" style="cursor:pointer"/>`;
+      svg += `<circle class="evt" data-ei="${i}" cx="${x.toFixed(1)}" cy="${ly+8}" r="5" fill="${color}" stroke-width="2" style="cursor:pointer"/>`;
+    } else {
+      svg += `<circle class="evt" data-ei="${i}" cx="${x.toFixed(1)}" cy="${ly+8}" r="5" fill="${color}" stroke-width="2" style="cursor:pointer"/>`;
+    }
+
+    const lx = x + 8;
+    const anchor = lx + 160 > W ? 'end' : 'start';
+    const labelX = anchor === 'end' ? x - 8 : lx;
+    const short = esc((e.event || '').slice(0, 42) + ((e.event||'').length > 42 ? '…' : ''));
+    svg += `<text class="evt" data-ei="${i}" x="${labelX.toFixed(1)}" y="${ly+24}" font-size="10" text-anchor="${anchor}" fill="#888" font-family="system-ui,sans-serif" style="cursor:pointer">${short}</text>`;
+  });
+
+  svg += '</svg>';
+  return { svg, srcSet, srcColor, numLanes };
+}
+
+function buildAxis(minT, maxT, W) {
+  const minYr = new Date(minT).getFullYear();
+  const maxYr = new Date(maxT).getFullYear();
+  let ticks = [];
+  for (let y = minYr; y <= maxYr + 1; y++) {
+    const d = new Date(y, 0, 1);
+    if (d.getTime() >= minT && d.getTime() <= maxT) ticks.push(d);
+  }
+  if (ticks.length > 16) {
+    const step = Math.ceil(ticks.length / 12);
+    ticks = ticks.filter((_, i) => i % step === 0);
+  }
+
+  function toX(d) { return ((d.getTime() - minT) / (maxT - minT)) * W; }
+
+  let svg = `<svg viewBox="0 0 ${W} 28" width="100%" style="display:block">`;
+  svg += `<line x1="0" y1="14" x2="${W}" y2="14" stroke="#c4c2bc" stroke-width="1.5"/>`;
+  ticks.forEach(d => {
+    const x = toX(d).toFixed(1);
+    svg += `<line x1="${x}" y1="8" x2="${x}" y2="20" stroke="#aaa" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="28" text-anchor="middle" font-size="10" fill="#999" font-family="system-ui,sans-serif">${d.getFullYear()}</text>`;
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function render() {
+  const rawA = document.getElementById('textA').value.trim();
+  const rawB = document.getElementById('textB').value.trim();
+  const nameA = document.getElementById('nameA').value || 'Source A';
+  const nameB = document.getElementById('nameB').value || 'Source B';
+  const fromY = document.getElementById('fromYear').value.trim();
+  const toY = document.getElementById('toYear').value.trim();
+  const output = document.getElementById('output');
+
+  if (!rawA && !rawB) {
+    output.innerHTML = '<div class="empty">No data in either source.</div>';
+    return;
+  }
+
+  const fromYear = fromY ? parseInt(fromY) : null;
+  const toYear = toY ? parseInt(toY) : null;
+
+  function prepare(raw) {
+    if (!raw) return [];
+    return parseLines(raw)
+      .map(e => ({ ...e, _start: parseDate(e.start_date), _end: parseDate(e.end_date) }))
+      .filter(e => {
+        if (!e._start) return false;
+        const yr = e._start.getFullYear();
+        if (fromYear && yr < fromYear) return false;
+        if (toYear && yr > toYear) return false;
+        return true;
+      })
+      .sort((a, b) => a._start - b._start);
+  }
+
+  const eventsA = prepare(rawA);
+  const eventsB = prepare(rawB);
+
+  if (!eventsA.length && !eventsB.length) {
+    output.innerHTML = '<div class="empty">No events match the current filters.</div>';
+    return;
+  }
+
+  const allDates = [...eventsA, ...eventsB].flatMap(e => [e._start, e._end].filter(Boolean));
+  let minT = Math.min(...allDates.map(d => d.getTime()));
+  let maxT = Math.max(...allDates.map(d => d.getTime()));
+  if (minT === maxT) maxT = minT + 1e10;
+  const pad = (maxT - minT) * 0.04;
+  minT -= pad; maxT += pad;
+
+  const W = 960;
+  const PX = 20;
+
+  const A = eventsA.length ? buildSectionSVG(eventsA, minT, maxT, W, COLORS_A, '--bg') : null;
+  const B = eventsB.length ? buildSectionSVG(eventsB, minT, maxT, W, COLORS_B, '--bg-secondary') : null;
+  const axisSVG = buildAxis(minT, maxT, W);
+
+  function makeLegend(srcSet, srcColor, accentColor) {
+    const dotLegend = srcSet.slice(0, 6).map(s =>
+      `<span><span class="leg-dot" style="background:${srcColor[s]};color:${srcColor[s]}"></span>${esc(s)||'unknown'}</span>`
+    ).join('');
+    return `
+      <div class="legend">
+        <span><span class="leg-dot" style="background:${accentColor};color:${accentColor}"></span>point</span>
+        <span><span class="leg-span" style="background:${accentColor}"></span>span</span>
+        ${dotLegend}
+      </div>`;
+  }
+
+  const pad20 = `style="padding-left:20px;padding-right:20px"`;
+
+  let html = `<div class="tl-wrap">`;
+
+  html += `<div class="stats-row">`;
+  if (A) html += `<span style="color:#378ADD">▲ ${nameA}: ${eventsA.length} event${eventsA.length!==1?'s':''}, ${A.numLanes} lane${A.numLanes!==1?'s':''}</span>`;
+  if (B) html += `<span style="color:#1D9E75">▼ ${nameB}: ${eventsB.length} event${eventsB.length!==1?'s':''}, ${B.numLanes} lane${B.numLanes!==1?'s':''}</span>`;
+  html += `</div>`;
+
+  if (A) {
+    html += `<div class="tl-section a">`;
+    html += `<div class="tl-section-header"><div class="tl-section-dot" style="background:#378ADD"></div>${esc(nameA)}</div>`;
+    html += makeLegend(A.srcSet, A.srcColor, '#378ADD');
+    html += `<div ${pad20} id="svgA">${A.svg}</div>`;
+    html += `</div>`;
+  }
+
+  html += `<div class="axis-strip"><div ${pad20} style="padding-top:8px;padding-bottom:4px">${axisSVG}</div></div>`;
+
+  if (B) {
+    html += `<div class="tl-section b">`;
+    html += `<div class="tl-section-header"><div class="tl-section-dot" style="background:#1D9E75"></div>${esc(nameB)}</div>`;
+    html += makeLegend(B.srcSet, B.srcColor, '#1D9E75');
+    html += `<div ${pad20} id="svgB">${B.svg}</div>`;
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  output.innerHTML = html;
+
+  // fix circle strokes (need to match section bg, can't use CSS var in SVG attr)
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const strokeA = isDark ? '#1a1a1a' : '#ffffff';
+  const strokeB = isDark ? '#242424' : '#f7f6f3';
+  output.querySelectorAll('#svgA circle').forEach(c => c.setAttribute('stroke', strokeA));
+  output.querySelectorAll('#svgB circle').forEach(c => c.setAttribute('stroke', strokeB));
+
+  // tooltips
+  const tt = document.getElementById('tt');
+  function attachTooltips(svgId, events) {
+    const container = document.getElementById(svgId);
+    if (!container) return;
+    container.querySelectorAll('.evt').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        const e = events[+el.dataset.ei];
+        const dateStr = esc(e.start_date) +
+          (e.end_date && e.end_date !== 'unknown' && e.end_date !== e.start_date
+            ? ' → ' + esc(e.end_date) : '');
+        tt.innerHTML = `<strong>${esc(e.event || '(no event text)')}</strong>
+          <div class="meta">${dateStr}</div>
+          ${e.participants ? `<div class="meta">Participants: ${esc(e.participants)}</div>` : ''}
+          ${e.cause && e.cause !== 'unknown' ? `<div class="meta">Cause: ${esc(e.cause)}</div>` : ''}
+          ${e.effect && e.effect !== 'unknown' ? `<div class="meta">Effect: ${esc(e.effect)}</div>` : ''}
+          <div class="source-badge">${esc(getSources(e))}</div>`;
+        tt.style.display = 'block';
+      });
+      el.addEventListener('mousemove', ev => {
+        tt.style.left = (ev.clientX + 14) + 'px';
+        tt.style.top = (ev.clientY - 10) + 'px';
+      });
+      el.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
+    });
+  }
+
+  attachTooltips('svgA', eventsA);
+  attachTooltips('svgB', eventsB);
+}
+</script>
+</body>
+</html>
