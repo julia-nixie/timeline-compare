@@ -78,19 +78,18 @@
     .panel-dot.b { background: var(--accent-b); }
 
     .panel-name {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px;
       font-size: 13px;
-      font-weight: 500;
-      border: none;
-      background: transparent;
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--bg);
       color: var(--text);
       font-family: var(--font);
       outline: none;
-      flex: 1;
-      min-width: 0;
-      border-bottom: 1px dashed var(--border-strong);
-      padding-bottom: 1px;
     }
-    .panel-name:focus { border-bottom-color: var(--text-secondary); }
+    .panel-name:focus { border-color: var(--text-secondary); }
 
     .panel-file {
       font-size: 12px;
@@ -272,7 +271,11 @@
   <div class="source-panel a">
     <div class="panel-header">
       <div class="panel-dot a"></div>
-      <input class="panel-name" id="nameA" type="text" value="Source A" placeholder="Source A label">
+      <span style="font-size:13px;font-weight:500;color:var(--text-secondary)">Timeline A</span>
+    </div>
+    <div class="ctrl-group" style="margin-bottom:10px">
+      <label>Label</label>
+      <input class="panel-name" id="nameA" type="text" value="" placeholder="e.g. DDR">
     </div>
     <div class="panel-file">
       <input type="file" id="fileA" accept=".jsonl,.json,.txt">
@@ -283,7 +286,11 @@
   <div class="source-panel b">
     <div class="panel-header">
       <div class="panel-dot b"></div>
-      <input class="panel-name" id="nameB" type="text" value="Source B" placeholder="Source B label">
+      <span style="font-size:13px;font-weight:500;color:var(--text-secondary)">Timeline B</span>
+    </div>
+    <div class="ctrl-group" style="margin-bottom:10px">
+      <label>Label</label>
+      <input class="panel-name" id="nameB" type="text" value="" placeholder="e.g. Source Rg0986">
     </div>
     <div class="panel-file">
       <input type="file" id="fileB" accept=".jsonl,.json,.txt">
@@ -372,7 +379,7 @@ loadFile('fileA','textA','statusA');
 loadFile('fileB','textB','statusB');
 
 function clearAll() {
-  ['textA','textB'].forEach(id => document.getElementById(id).value = '');
+  ['textA','textB','nameA','nameB'].forEach(id => document.getElementById(id).value = '');
   ['fileA','fileB'].forEach(id => document.getElementById(id).value = '');
   ['statusA','statusB'].forEach(id => document.getElementById(id).textContent = '');
   document.getElementById('output').innerHTML = '<div class="empty">Load events above and click "Compare timelines".</div>';
@@ -432,27 +439,60 @@ function buildSectionSVG(events, minT, maxT, W, colors, bgVar) {
 }
 
 function buildAxis(minT, maxT, W) {
-  const minYr = new Date(minT).getFullYear();
-  const maxYr = new Date(maxT).getFullYear();
-  let ticks = [];
-  for (let y = minYr; y <= maxYr + 1; y++) {
-    const d = new Date(y, 0, 1);
-    if (d.getTime() >= minT && d.getTime() <= maxT) ticks.push(d);
-  }
-  if (ticks.length > 16) {
-    const step = Math.ceil(ticks.length / 12);
-    ticks = ticks.filter((_, i) => i % step === 0);
-  }
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const minDate = new Date(minT);
+  const maxDate = new Date(maxT);
+  const spanYears = (maxT - minT) / (365.25 * 86400000);
+  const showMonths = spanYears <= 2;
 
   function toX(d) { return ((d.getTime() - minT) / (maxT - minT)) * W; }
 
-  let svg = `<svg viewBox="0 0 ${W} 28" width="100%" style="display:block">`;
+  const svgH = showMonths ? 40 : 28;
+  let svg = `<svg viewBox="0 0 ${W} ${svgH}" width="100%" style="display:block">`;
   svg += `<line x1="0" y1="14" x2="${W}" y2="14" stroke="#c4c2bc" stroke-width="1.5"/>`;
-  ticks.forEach(d => {
-    const x = toX(d).toFixed(1);
-    svg += `<line x1="${x}" y1="8" x2="${x}" y2="20" stroke="#aaa" stroke-width="1"/>`;
-    svg += `<text x="${x}" y="28" text-anchor="middle" font-size="10" fill="#999" font-family="system-ui,sans-serif">${d.getFullYear()}</text>`;
-  });
+
+  if (showMonths) {
+    // year ticks — tall, with label above the axis
+    const minYr = minDate.getFullYear();
+    const maxYr = maxDate.getFullYear();
+    for (let y = minYr; y <= maxYr; y++) {
+      const d = new Date(y, 0, 1);
+      if (d.getTime() < minT || d.getTime() > maxT) continue;
+      const x = toX(d).toFixed(1);
+      svg += `<line x1="${x}" y1="5" x2="${x}" y2="22" stroke="#888" stroke-width="1.5"/>`;
+      svg += `<text x="${x}" y="34" text-anchor="middle" font-size="11" font-weight="500" fill="#666" font-family="system-ui,sans-serif">${y}</text>`;
+    }
+    // month ticks — short, with 3-letter label
+    for (let y = minDate.getFullYear(); y <= maxDate.getFullYear(); y++) {
+      for (let m = 0; m < 12; m++) {
+        const d = new Date(y, m, 1);
+        if (d.getTime() < minT || d.getTime() > maxT) continue;
+        if (m === 0) continue; // already drawn as year tick
+        const x = toX(d).toFixed(1);
+        svg += `<line x1="${x}" y1="10" x2="${x}" y2="18" stroke="#bbb" stroke-width="1"/>`;
+        svg += `<text x="${x}" y="34" text-anchor="middle" font-size="9" fill="#999" font-family="system-ui,sans-serif">${MONTHS_SHORT[m]}</text>`;
+      }
+    }
+  } else {
+    // year-only mode
+    const minYr = new Date(minT).getFullYear();
+    const maxYr = new Date(maxT).getFullYear();
+    let ticks = [];
+    for (let y = minYr; y <= maxYr + 1; y++) {
+      const d = new Date(y, 0, 1);
+      if (d.getTime() >= minT && d.getTime() <= maxT) ticks.push(d);
+    }
+    if (ticks.length > 16) {
+      const step = Math.ceil(ticks.length / 12);
+      ticks = ticks.filter((_, i) => i % step === 0);
+    }
+    ticks.forEach(d => {
+      const x = toX(d).toFixed(1);
+      svg += `<line x1="${x}" y1="8" x2="${x}" y2="20" stroke="#aaa" stroke-width="1"/>`;
+      svg += `<text x="${x}" y="28" text-anchor="middle" font-size="10" fill="#999" font-family="system-ui,sans-serif">${d.getFullYear()}</text>`;
+    });
+  }
+
   svg += '</svg>';
   return svg;
 }
@@ -460,8 +500,8 @@ function buildAxis(minT, maxT, W) {
 function render() {
   const rawA = document.getElementById('textA').value.trim();
   const rawB = document.getElementById('textB').value.trim();
-  const nameA = document.getElementById('nameA').value || 'Source A';
-  const nameB = document.getElementById('nameB').value || 'Source B';
+  const nameA = document.getElementById('nameA').value.trim() || 'Timeline A';
+  const nameB = document.getElementById('nameB').value.trim() || 'Timeline B';
   const fromY = document.getElementById('fromYear').value.trim();
   const toY = document.getElementById('toYear').value.trim();
   const output = document.getElementById('output');
@@ -477,9 +517,15 @@ function render() {
   function prepare(raw) {
     if (!raw) return [];
     return parseLines(raw)
-      .map(e => ({ ...e, _start: parseDate(e.start_date), _end: parseDate(e.end_date) }))
+      .map(e => {
+        let _start = parseDate(e.start_date);
+        let _end = parseDate(e.end_date);
+        if (!_start) _start = _end;
+        if (!_end) _end = _start;
+        return { ...e, _start, _end };
+      })
       .filter(e => {
-        if (!e._start) return false;
+        if (!e._start) return false;  // both unknown — nothing to place
         const yr = e._start.getFullYear();
         if (fromYear && yr < fromYear) return false;
         if (toYear && yr > toYear) return false;
@@ -510,15 +556,12 @@ function render() {
   const B = eventsB.length ? buildSectionSVG(eventsB, minT, maxT, W, COLORS_B, '--bg-secondary') : null;
   const axisSVG = buildAxis(minT, maxT, W);
 
-  function makeLegend(srcSet, srcColor, accentColor) {
-    const dotLegend = srcSet.slice(0, 6).map(s =>
-      `<span><span class="leg-dot" style="background:${srcColor[s]};color:${srcColor[s]}"></span>${esc(s)||'unknown'}</span>`
-    ).join('');
+  function makeLegend(label, accentColor) {
     return `
       <div class="legend">
+        <span><span class="leg-dot" style="background:${accentColor};color:${accentColor}"></span>${esc(label)}</span>
         <span><span class="leg-dot" style="background:${accentColor};color:${accentColor}"></span>point</span>
         <span><span class="leg-span" style="background:${accentColor}"></span>span</span>
-        ${dotLegend}
       </div>`;
   }
 
@@ -527,14 +570,14 @@ function render() {
   let html = `<div class="tl-wrap">`;
 
   html += `<div class="stats-row">`;
-  if (A) html += `<span style="color:#378ADD">▲ ${nameA}: ${eventsA.length} event${eventsA.length!==1?'s':''}, ${A.numLanes} lane${A.numLanes!==1?'s':''}</span>`;
-  if (B) html += `<span style="color:#1D9E75">▼ ${nameB}: ${eventsB.length} event${eventsB.length!==1?'s':''}, ${B.numLanes} lane${B.numLanes!==1?'s':''}</span>`;
+  if (A) html += `<span style="color:#378ADD">▲ ${esc(nameA)}: ${eventsA.length} event${eventsA.length!==1?'s':''}, ${A.numLanes} lane${A.numLanes!==1?'s':''}</span>`;
+  if (B) html += `<span style="color:#1D9E75">▼ ${esc(nameB)}: ${eventsB.length} event${eventsB.length!==1?'s':''}, ${B.numLanes} lane${B.numLanes!==1?'s':''}</span>`;
   html += `</div>`;
 
   if (A) {
     html += `<div class="tl-section a">`;
     html += `<div class="tl-section-header"><div class="tl-section-dot" style="background:#378ADD"></div>${esc(nameA)}</div>`;
-    html += makeLegend(A.srcSet, A.srcColor, '#378ADD');
+    html += makeLegend(nameA, '#378ADD');
     html += `<div ${pad20} id="svgA">${A.svg}</div>`;
     html += `</div>`;
   }
@@ -544,7 +587,7 @@ function render() {
   if (B) {
     html += `<div class="tl-section b">`;
     html += `<div class="tl-section-header"><div class="tl-section-dot" style="background:#1D9E75"></div>${esc(nameB)}</div>`;
-    html += makeLegend(B.srcSet, B.srcColor, '#1D9E75');
+    html += makeLegend(nameB, '#1D9E75');
     html += `<div ${pad20} id="svgB">${B.svg}</div>`;
     html += `</div>`;
   }
